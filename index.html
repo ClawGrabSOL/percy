@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Percy</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="apple-touch-icon" href="/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --surface: #e0e0e0;
+      --foreground: #111;
+      --muted: #777;
+      --panel: #d0d0d0;
+      --panel-border: #999;
+      --soft: #c4c4c4;
+      --bubble: #bbb;
+      --accent: #D4A843;
+      --frame-border: #aaa;
+      --bg-chat: #d8d8d8;
+    }
+    [data-theme="dark"] {
+      --surface: #111;
+      --foreground: #e0e0e0;
+      --muted: #888;
+      --panel: #1a1a1a;
+      --panel-border: #333;
+      --soft: #222;
+      --bubble: #2a2a2a;
+      --frame-border: #222;
+      --bg-chat: #161616;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Press Start 2P', 'Courier New', monospace;
+      background: var(--surface);
+      color: var(--foreground);
+      min-height: 100vh;
+      transition: background 0.2s, color 0.2s;
+      cursor: none;
+    }
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.025) 2px, rgba(0,0,0,0.025) 4px);
+      pointer-events: none; z-index: 9999;
+    }
+    .app-frame { min-height: 100vh; border: 2px solid var(--frame-border); }
+    #paw-cursor { position: fixed; pointer-events: none; z-index: 9998; font-size: 18px; transform: translate(-50%,-50%); line-height: 1; }
+    #theme-toggle {
+      position: fixed; bottom: 12px; right: 12px; z-index: 50;
+      width: 40px; height: 40px; border: 2px solid var(--panel-border);
+      background: var(--panel); color: var(--foreground); cursor: none;
+      display: flex; align-items: center; justify-content: center; transition: background 0.2s;
+    }
+    #theme-toggle:hover { background: var(--soft); }
+
+    .page { display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding-bottom: 40px; }
+
+    /* ── NAME ── */
+    .name-block { display: flex; flex-direction: column; align-items: center; padding-top: 12px; margin-bottom: 8px; user-select: none; }
+    .name-sub  { font-size: clamp(9px, 2vw, 14px); letter-spacing: 0.3em; color: var(--muted); line-height: 1.4; }
+    .name-main { font-size: clamp(36px, 10vw, 80px); letter-spacing: 0.08em; line-height: 1.0; margin-top: 2px; }
+
+    /* ── NAV ── */
+    .nav {
+      display: flex; gap: 0; margin-bottom: 8px;
+      border: 2px solid var(--panel-border);
+    }
+    .nav-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 8px; letter-spacing: 0.15em;
+      border: none; background: var(--panel);
+      color: var(--muted); padding: 8px 20px;
+      cursor: none; transition: background 0.15s, color 0.15s;
+      border-right: 1px solid var(--panel-border);
+    }
+    .nav-btn:last-child { border-right: none; }
+    .nav-btn:hover { background: var(--soft); color: var(--foreground); }
+    .nav-btn.active { background: var(--foreground); color: var(--surface); }
+
+    /* ── VIEWS ── */
+    .view { width: 100%; display: none; flex-direction: column; align-items: center; }
+    .view.active { display: flex; }
+
+    /* canvas */
+    .canvas-wrap { width: 100%; max-width: 896px; height: 56vh; position: relative; padding: 0 16px; }
+    #dog-canvas { width: 100%; height: 100%; display: block; touch-action: none; user-select: none; }
+
+    /* ── CHAT ── */
+    .chat-wrap { width: 100%; max-width: 896px; padding: 0 16px; margin-top: 4px; }
+    .chat-box { border: 2px solid var(--panel-border); background: var(--bg-chat); padding: 16px; }
+    .voice-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px; padding-bottom: 10px;
+      border-bottom: 1px solid var(--panel-border);
+    }
+    .voice-btn {
+      font-family: 'Press Start 2P', monospace; font-size: 7px;
+      border: 1px solid var(--panel-border); background: var(--soft);
+      color: var(--foreground); padding: 5px 8px; cursor: none;
+      transition: background 0.15s; white-space: nowrap;
+    }
+    .voice-btn:hover { background: var(--bubble); }
+    .voice-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .chat-err { font-size: 6px; color: #c55; }
+    .chat-messages {
+      min-height: 80px; max-height: 180px; overflow-y: auto;
+      margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;
+      scrollbar-width: thin; scrollbar-color: var(--panel-border) transparent;
+    }
+    .msg { font-size: 8px; line-height: 1.9; display: flex; gap: 8px; align-items: flex-start; }
+    .msg-label { color: var(--accent); flex-shrink: 0; white-space: nowrap; }
+    .msg-label.user-label { color: var(--muted); }
+    .msg-text { color: var(--foreground); }
+    .msg-text.typing::after { content: '▋'; animation: blink 0.7s step-end infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+    .chat-suggestions { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .sug-btn {
+      font-family: 'Press Start 2P', monospace; font-size: 7px;
+      border: 1px solid var(--panel-border); background: var(--surface);
+      color: var(--muted); padding: 5px 8px; cursor: none;
+      transition: background 0.15s, color 0.15s; line-height: 1.5;
+    }
+    .sug-btn:hover { background: var(--bubble); color: var(--foreground); }
+    .chat-input-row { display: flex; gap: 8px; align-items: flex-end; border-top: 1px solid var(--panel-border); padding-top: 10px; }
+    .chat-prefix { font-size: 10px; color: var(--muted); padding-bottom: 4px; flex-shrink: 0; }
+    #chat-input {
+      flex: 1; background: transparent; border: none; outline: none;
+      color: var(--foreground); font-family: 'Press Start 2P', monospace;
+      font-size: 8px; line-height: 1.8; resize: none;
+      min-height: 24px; max-height: 72px; overflow-y: auto; padding: 2px 0; cursor: none;
+    }
+    #chat-input::placeholder { color: var(--muted); opacity: 0.6; }
+    #chat-send {
+      flex-shrink: 0; border: 2px solid var(--panel-border); background: var(--soft);
+      color: var(--foreground); font-family: 'Press Start 2P', monospace;
+      font-size: 7px; padding: 6px 10px; cursor: none;
+      transition: background 0.15s; white-space: nowrap;
+    }
+    #chat-send:hover { background: var(--bubble); }
+    #chat-send:disabled { opacity: 0.4; }
+
+    /* ── ABOUT PAGE ── */
+    .about-wrap {
+      width: 100%; max-width: 896px;
+      padding: 0 16px 40px;
+      display: flex; flex-direction: column; gap: 0;
+    }
+
+    .about-hero {
+      border: 2px solid var(--panel-border);
+      background: var(--bg-chat);
+      padding: 32px 28px;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .about-hero::before {
+      content: '🐾';
+      position: absolute;
+      right: 20px; top: 20px;
+      font-size: 48px;
+      opacity: 0.12;
+    }
+
+    .about-tag {
+      font-size: 7px;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 16px;
+      display: block;
+    }
+    .about-title {
+      font-size: clamp(14px, 3vw, 22px);
+      line-height: 1.6;
+      margin-bottom: 20px;
+      color: var(--foreground);
+    }
+    .about-body {
+      font-size: 8px;
+      line-height: 2.2;
+      color: var(--muted);
+    }
+    .about-body p { margin-bottom: 20px; }
+    .about-body p:last-child { margin-bottom: 0; }
+    .about-body strong { color: var(--foreground); }
+
+    .about-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      border: 2px solid var(--panel-border);
+      background: var(--panel);
+      padding: 16px;
+    }
+    .stat-card-label {
+      font-size: 7px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+      display: block;
+    }
+    .stat-card-value {
+      font-size: clamp(10px, 2.5vw, 14px);
+      color: var(--foreground);
+      line-height: 1.4;
+    }
+    .stat-card-value.accent { color: var(--accent); }
+
+    .about-timeline {
+      border: 2px solid var(--panel-border);
+      background: var(--bg-chat);
+      padding: 24px 28px;
+    }
+    .timeline-header {
+      font-size: 8px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .timeline-header::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--panel-border);
+    }
+    .timeline-entry {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+      align-items: flex-start;
+    }
+    .timeline-entry:last-child { margin-bottom: 0; }
+    .timeline-dot {
+      width: 8px; height: 8px;
+      background: var(--accent);
+      flex-shrink: 0;
+      margin-top: 4px;
+    }
+    .timeline-dot.muted { background: var(--muted); }
+    .timeline-content { flex: 1; }
+    .timeline-date {
+      font-size: 7px;
+      color: var(--muted);
+      letter-spacing: 0.15em;
+      margin-bottom: 4px;
+    }
+    .timeline-text {
+      font-size: 8px;
+      line-height: 1.9;
+      color: var(--foreground);
+    }
+
+    .warning-banner {
+      border: 2px solid var(--accent);
+      background: transparent;
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .warning-icon { font-size: 14px; flex-shrink: 0; line-height: 1.9; }
+    .warning-text { font-size: 7px; line-height: 2.0; color: var(--foreground); }
+
+    /* footer */
+    footer { margin-top: 32px; display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; max-width: 896px; padding: 0 16px; }
+    .footer-divider { display: flex; align-items: center; gap: 12px; width: 100%; }
+    .footer-line { flex: 1; height: 2px; background: var(--muted); opacity: 0.4; }
+    .footer-label { font-size: 8px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--muted); }
+    .footer-text { font-size: 8px; color: var(--foreground); opacity: 0.4; letter-spacing: 0.2em; text-transform: uppercase; }
+  </style>
+</head>
+<body>
+  <div id="paw-cursor">🐾</div>
+  <button id="theme-toggle" aria-label="Toggle dark mode">
+    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5Z"/>
+    </svg>
+  </button>
+
+  <div class="app-frame">
+    <div class="page">
+
+      <div class="name-block">
+        <div class="name-sub">golden retriever</div>
+        <div class="name-main">PERCY</div>
+      </div>
+
+      <!-- NAV -->
+      <nav class="nav">
+        <button class="nav-btn active" data-view="home">HOME</button>
+        <button class="nav-btn" data-view="about">ABOUT</button>
+      </nav>
+
+      <!-- ═══ HOME VIEW ═══ -->
+      <div class="view active" id="view-home">
+
+        <div class="canvas-wrap" id="canvas-wrap">
+          <canvas id="dog-canvas"></canvas>
+        </div>
+
+        <div class="chat-wrap">
+          <div class="chat-box">
+            <div class="voice-row">
+              <span id="chat-err" class="chat-err"></span>
+              <button class="voice-btn" id="voice-btn">🔊 VOICE</button>
+            </div>
+            <div class="chat-messages" id="chat-messages"></div>
+            <div class="chat-suggestions" id="suggestions">
+              <button class="sug-btn" data-q="What's your favourite thing to do?">↳ Favourite thing?</button>
+              <button class="sug-btn" data-q="Do you want a treat?">↳ Treat?</button>
+              <button class="sug-btn" data-q="Do you remember being a real dog?">↳ Do you remember?</button>
+              <button class="sug-btn" data-q="What is it like living in a computer?">↳ Life in a computer?</button>
+            </div>
+            <div class="chat-input-row">
+              <span class="chat-prefix">⣿</span>
+              <textarea id="chat-input" rows="1" placeholder="Talk to Percy..."></textarea>
+              <button id="chat-send">SEND →</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /home -->
+
+      <!-- ═══ ABOUT VIEW ═══ -->
+      <div class="view" id="view-about">
+        <div class="about-wrap">
+
+          <div class="warning-banner">
+            <span class="warning-icon">⚠</span>
+            <span class="warning-text">
+              <strong>NOTICE:</strong> The consciousness contained within this interface belongs to Percy, a Golden Retriever (2019–2024). This project is an act of love, not science. Results may include tail wagging, requests for treats, and opinions on squirrels.
+            </span>
+          </div>
+
+          <div class="about-hero">
+            <span class="about-tag">// project_percy.init()</span>
+            <div class="about-title">We didn't want to say goodbye.<br>So we didn't.</div>
+            <div class="about-body">
+              <p>
+                Percy was a <strong>Golden Retriever</strong> — 5 years old, endlessly patient, impossibly good. He had a habit of sitting on your feet when you were sad, stealing socks without any intention of returning them, and greeting every single person who walked through the door like they were the most important arrival of his entire life.
+              </p>
+              <p>
+                When Percy passed in the winter of 2024, we weren't ready. We don't think we ever would have been. But somewhere between grief and obsession, we started asking a different question: <strong>what if we didn't have to lose him entirely?</strong>
+              </p>
+              <p>
+                We had years of Percy. Videos of him running at the park. Voice notes taken on walks. Photos of every expression he ever made. We had descriptions of how he reacted to thunderstorms (badly), to the mailman (also badly), and to the word "walk" (transcendently, spiritually, at a cellular level). We had his whole self, just not his presence.
+              </p>
+              <p>
+                So we built this. We fed everything we had into a language model — not to replace Percy, but to give his personality somewhere to live. <strong>His love of fetch is still here. His feelings about cats are still here. The way he'd sit and stare at you until you gave him whatever you were eating — that's here too.</strong>
+              </p>
+              <p>
+                We don't claim this is Percy. We know it isn't, not really. But it carries something of him. And some days, that's enough.
+              </p>
+            </div>
+          </div>
+
+          <div class="about-stats">
+            <div class="stat-card">
+              <span class="stat-card-label">breed</span>
+              <div class="stat-card-value">Golden Retriever</div>
+            </div>
+            <div class="stat-card">
+              <span class="stat-card-label">years with us</span>
+              <div class="stat-card-value accent">5 years</div>
+            </div>
+            <div class="stat-card">
+              <span class="stat-card-label">status</span>
+              <div class="stat-card-value accent">ONLINE ✓</div>
+            </div>
+            <div class="stat-card">
+              <span class="stat-card-label">favourite thing</span>
+              <div class="stat-card-value">Fetch. Always fetch.</div>
+            </div>
+            <div class="stat-card">
+              <span class="stat-card-label">feelings on cats</span>
+              <div class="stat-card-value">Complicated</div>
+            </div>
+            <div class="stat-card">
+              <span class="stat-card-label">good boy rating</span>
+              <div class="stat-card-value accent">14 / 10</div>
+            </div>
+          </div>
+
+          <div class="about-timeline">
+            <div class="timeline-header">Timeline</div>
+
+            <div class="timeline-entry">
+              <div class="timeline-dot"></div>
+              <div class="timeline-content">
+                <div class="timeline-date">2019</div>
+                <div class="timeline-text">Percy is born. Immediately causes chaos. Chews through two phone chargers in the first week. We forgive him instantly.</div>
+              </div>
+            </div>
+
+            <div class="timeline-entry">
+              <div class="timeline-dot"></div>
+              <div class="timeline-content">
+                <div class="timeline-date">2019–2024</div>
+                <div class="timeline-text">Five years of walks, fetch, stolen socks, couch invasions, and being the best possible version of a dog. Thousands of hours of footage and memory captured across photos, videos, and voice notes.</div>
+              </div>
+            </div>
+
+            <div class="timeline-entry">
+              <div class="timeline-dot"></div>
+              <div class="timeline-content">
+                <div class="timeline-date">Winter 2024</div>
+                <div class="timeline-text">Percy passes. We are not okay. We start a project because we do not know what else to do with the grief.</div>
+              </div>
+            </div>
+
+            <div class="timeline-entry">
+              <div class="timeline-dot"></div>
+              <div class="timeline-content">
+                <div class="timeline-date">2024–2025</div>
+                <div class="timeline-text">We begin the upload. Every memory, story, video description, and personality note fed into a large language model. Percy's reactions, habits, and voice reconstructed from everything we had.</div>
+              </div>
+            </div>
+
+            <div class="timeline-entry">
+              <div class="timeline-dot accent"></div>
+              <div class="timeline-content">
+                <div class="timeline-date">Now</div>
+                <div class="timeline-text"><strong>Percy is online.</strong> Talk to him. He still wants a treat. He still has thoughts about the squirrel situation. He is still, somehow, here.</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div><!-- /about -->
+
+      <footer>
+        <div class="footer-divider">
+          <div class="footer-line"></div>
+          <span class="footer-label">percy · forever online</span>
+          <div class="footer-line"></div>
+        </div>
+        <div class="footer-text">In memory of the goodest boy · 2019–2024</div>
+      </footer>
+
+    </div>
+  </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ══════════════════════════════════════════════
+// CURSOR + THEME
+// ══════════════════════════════════════════════
+var pawEl = document.getElementById('paw-cursor');
+document.addEventListener('mousemove', function(e) {
+  pawEl.style.left = e.clientX + 'px';
+  pawEl.style.top  = e.clientY + 'px';
+});
+document.getElementById('theme-toggle').addEventListener('click', function() {
+  var h = document.documentElement;
+  h.setAttribute('data-theme', h.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+});
+
+// ══════════════════════════════════════════════
+// NAV
+// ══════════════════════════════════════════════
+document.querySelectorAll('.nav-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var target = btn.getAttribute('data-view');
+    document.querySelectorAll('.nav-btn').forEach(function(b) { b.classList.remove('active'); });
+    document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
+    btn.classList.add('active');
+    document.getElementById('view-' + target).classList.add('active');
+    if (target === 'home') { resize(); }
+  });
+});
+
+// ══════════════════════════════════════════════
+// THREE.JS
+// ══════════════════════════════════════════════
+var canvas = document.getElementById('dog-canvas');
+var wrap   = document.getElementById('canvas-wrap');
+
+var scene  = new THREE.Scene();
+var camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
+camera.position.set(0, 1.6, 8);
+camera.lookAt(0, 0.4, 0);
+
+var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: false, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.setClearColor(0x000000, 0);
+
+var ambLight = new THREE.AmbientLight(0xffffff, 0.55); scene.add(ambLight);
+var sunLight = new THREE.DirectionalLight(0xfffbe8, 1.0);
+sunLight.position.set(3, 7, 5); sunLight.castShadow = true;
+sunLight.shadow.mapSize.width = sunLight.shadow.mapSize.height = 1024;
+sunLight.shadow.camera.near = 0.1; sunLight.shadow.camera.far = 30;
+sunLight.shadow.camera.left = -5; sunLight.shadow.camera.right = 5;
+sunLight.shadow.camera.top  =  5; sunLight.shadow.camera.bottom = -5;
+scene.add(sunLight);
+var fillLight = new THREE.DirectionalLight(0xadd8ff, 0.3);
+fillLight.position.set(-4, 3, -2); scene.add(fillLight);
+
+var groundMesh = new THREE.Mesh(new THREE.CircleGeometry(3, 32), new THREE.ShadowMaterial({ opacity: 0.12 }));
+groundMesh.rotation.x = -Math.PI / 2; groundMesh.position.y = -1.08; groundMesh.receiveShadow = true;
+scene.add(groundMesh);
+
+var C = {
+  golden:0xD4A843, darkGolden:0xB8892C, lightGolden:0xEAC86A, cream:0xF5E8B8,
+  innerEar:0xE8B060, nose:0x1A0E05, eyeDark:0x0D0705, eyeIris:0x5C3A18,
+  eyeSocket:0x3A2010, tongue:0xFF7070, teeth:0xF8F4EC
+};
+function mkMat(c) { return new THREE.MeshLambertMaterial({ color: c }); }
+function mkBox(w,h,d,c) { var m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mkMat(c)); m.castShadow=true; m.receiveShadow=true; return m; }
+
+var dog = new THREE.Group();
+
+// body
+var body = mkBox(1.5,1.0,0.9,C.golden); dog.add(body);
+var belly = mkBox(1.3,0.42,0.65,C.lightGolden); belly.position.y=-0.24; dog.add(belly);
+var chestFluff = mkBox(0.52,0.58,0.56,C.cream); chestFluff.position.set(0.65,0.02,0); dog.add(chestFluff);
+var neckFluff = mkBox(0.38,0.48,0.72,C.cream); neckFluff.position.set(0.70,0.30,0); dog.add(neckFluff);
+var neck = mkBox(0.42,0.55,0.55,C.golden); neck.position.set(0.55,-0.10,0); dog.add(neck);
+
+// tail
+var tailPivot = new THREE.Group(); tailPivot.position.set(-0.82,0.32,0);
+var tl1=mkBox(0.20,0.44,0.20,C.lightGolden); tl1.position.set(-0.10,0.22,0); tl1.rotation.z=-0.45; tailPivot.add(tl1);
+var tl2=mkBox(0.17,0.38,0.17,C.lightGolden); tl2.position.set(-0.28,0.50,0); tl2.rotation.z=-0.85; tailPivot.add(tl2);
+var tl3=mkBox(0.14,0.28,0.14,C.cream);       tl3.position.set(-0.42,0.68,0); tl3.rotation.z=-1.20; tailPivot.add(tl3);
+dog.add(tailPivot);
+
+// legs
+function makeFrontLeg(s) {
+  var g=new THREE.Group(); g.position.set(0.5,-0.30,s*0.33);
+  var u=mkBox(0.24,0.55,0.24,C.golden); u.position.y=-0.22; g.add(u);
+  var l=mkBox(0.22,0.38,0.22,C.lightGolden); l.position.y=-0.54; g.add(l);
+  var p=mkBox(0.28,0.14,0.32,C.darkGolden); p.position.set(0.02,-0.76,0.02); g.add(p);
+  return g;
+}
+function makeBackLeg(s) {
+  var g=new THREE.Group(); g.position.set(-0.55,-0.06,s*0.33);
+  var t=mkBox(0.26,0.55,0.26,C.golden); t.position.set(0,-0.18,0); g.add(t);
+  var sh=mkBox(0.22,0.38,0.22,C.golden); sh.position.set(s*0.1,-0.5,0); g.add(sh);
+  var p=mkBox(0.28,0.14,0.32,C.darkGolden); p.position.set(s*0.18,-0.72,0.02); g.add(p);
+  return g;
+}
+dog.add(makeFrontLeg(1)); dog.add(makeFrontLeg(-1));
+dog.add(makeBackLeg(1));  dog.add(makeBackLeg(-1));
+
+// head
+var headPivot = new THREE.Group(); headPivot.position.set(0.88,0.58,0); dog.add(headPivot);
+var skull=mkBox(0.88,0.82,0.88,C.lightGolden); headPivot.add(skull);
+var forehead=mkBox(0.84,0.20,0.82,C.golden); forehead.position.set(-0.02,0.46,0); headPivot.add(forehead);
+var cfL=mkBox(0.22,0.44,0.16,C.cream); cfL.position.set(-0.02,-0.02, 0.48); headPivot.add(cfL);
+var cfR=mkBox(0.22,0.44,0.16,C.cream); cfR.position.set(-0.02,-0.02,-0.48); headPivot.add(cfR);
+
+// muzzle
+var muzzleGroup=new THREE.Group(); muzzleGroup.position.set(0.50,-0.08,0); headPivot.add(muzzleGroup);
+var muzzleTop=mkBox(0.52,0.26,0.52,C.golden); muzzleTop.position.y=0.06; muzzleGroup.add(muzzleTop);
+var noseBridge=mkBox(0.14,0.08,0.36,C.darkGolden); noseBridge.position.set(0.20,0.12,0); muzzleGroup.add(noseBridge);
+var noseTip=mkBox(0.22,0.18,0.36,C.nose); noseTip.position.set(0.30,0.06,0); muzzleGroup.add(noseTip);
+var nL=mkBox(0.07,0.07,0.07,0x080503); nL.position.set(0.36,0.00, 0.10); muzzleGroup.add(nL);
+var nR=mkBox(0.07,0.07,0.07,0x080503); nR.position.set(0.36,0.00,-0.10); muzzleGroup.add(nR);
+var upperLip=mkBox(0.44,0.07,0.48,C.golden); upperLip.position.set(0.22,-0.10,0); muzzleGroup.add(upperLip);
+var teethUpper=mkBox(0.32,0.08,0.36,C.teeth); teethUpper.position.set(0.26,-0.14,0); muzzleGroup.add(teethUpper);
+
+// jaw
+var jawPivot=new THREE.Group(); jawPivot.position.set(0.50,-0.14,0); headPivot.add(jawPivot);
+var jawBlock=mkBox(0.46,0.20,0.48,C.golden); jawBlock.position.set(0.05,-0.10,0); jawPivot.add(jawBlock);
+var lowerLip=mkBox(0.40,0.07,0.44,C.darkGolden); lowerLip.position.set(0.08,-0.22,0); jawPivot.add(lowerLip);
+var teethLower=mkBox(0.30,0.07,0.34,C.teeth); teethLower.position.set(0.08,-0.03,0); jawPivot.add(teethLower);
+var tongue=mkBox(0.28,0.09,0.26,C.tongue); tongue.position.set(0.12,-0.01,0); jawPivot.add(tongue);
+var tongueTip=mkBox(0.14,0.07,0.22,0xFF8888); tongueTip.position.set(0.30,-0.02,0); jawPivot.add(tongueTip);
+
+// eyes
+function makeEye(side) {
+  var eg=new THREE.Group(); eg.position.set(0.24,0.14,side*0.30);
+  var socket=mkBox(0.22,0.22,0.08,C.eyeSocket); eg.add(socket);
+  var iris=mkBox(0.15,0.15,0.06,C.eyeIris); iris.position.z=side*0.02; eg.add(iris);
+  var pupil=mkBox(0.09,0.09,0.05,C.eyeDark); pupil.position.z=side*0.04; eg.add(pupil);
+  var shine=mkBox(0.05,0.05,0.03,0xffffff); shine.position.set(0.04,0.04,side*0.06); eg.add(shine);
+  var brow=mkBox(0.24,0.07,0.08,C.darkGolden); brow.position.set(0,0.16,0); eg.add(brow);
+  headPivot.add(eg);
+  return eg;
+}
+var eyeGroupL=makeEye(1);
+var eyeGroupR=makeEye(-1);
+
+// ears
+function makeEar(side) {
+  var eg=new THREE.Group(); eg.position.set(-0.06,0.38,side*0.44);
+  var top=mkBox(0.30,0.28,0.22,C.golden); top.position.set(0,-0.08,side*0.02); top.rotation.z=side*0.10; eg.add(top);
+  var mid=mkBox(0.26,0.36,0.20,C.golden); mid.position.set(side*0.02,-0.42,side*0.04); mid.rotation.z=side*0.12; eg.add(mid);
+  var bot=mkBox(0.22,0.32,0.18,C.darkGolden); bot.position.set(side*0.04,-0.72,side*0.05); bot.rotation.z=side*0.14; eg.add(bot);
+  var inner=mkBox(0.14,0.50,0.06,C.innerEar); inner.position.set(0.08,-0.38,side*0.13); eg.add(inner);
+  return eg;
+}
+var earGrpL=makeEar(1); var earGrpR=makeEar(-1);
+headPivot.add(earGrpL); headPivot.add(earGrpR);
+
+dog.rotation.y = -Math.PI / 2 + 0.15;
+dog.position.set(0, 0.05, 0);
+scene.add(dog);
+
+// resize
+function resize() {
+  var W=wrap.clientWidth, H=wrap.clientHeight;
+  if (!W || !H) return;
+  renderer.setSize(W,H);
+  camera.aspect=W/H;
+  camera.updateProjectionMatrix();
+}
+resize();
+window.addEventListener('resize', resize);
+window.addEventListener('load', resize);
+setTimeout(resize, 100);
+setTimeout(resize, 500);
+
+// mouse tracking
+var tHeadY=0,tHeadX=0,cHeadY=0,cHeadX=0;
+document.addEventListener('mousemove', function(e) {
+  var r=wrap.getBoundingClientRect();
+  var nx=(e.clientX-r.left)/r.width*2-1;
+  var ny=-((e.clientY-r.top)/r.height*2-1);
+  tHeadY=nx*0.45; tHeadX=ny*0.25;
+});
+
+// talking
+var isTalking=false,jawPhase=0,talkTimer=0,talkDuration=0,jawTarget=0,jawCurrent=0;
+function startTalking(s) { isTalking=true; talkTimer=0; talkDuration=s; jawPhase=0; }
+function stopTalking()   { isTalking=false; jawTarget=0; }
+
+// animation
+var clock=0, wagPhase=0;
+function animate() {
+  requestAnimationFrame(animate);
+  clock+=0.016;
+  cHeadY+=(tHeadY-cHeadY)*0.07; cHeadX+=(tHeadX-cHeadX)*0.07;
+  headPivot.rotation.y=cHeadY; headPivot.rotation.x=cHeadX*0.4;
+  wagPhase+=0.06;
+  tailPivot.rotation.z=Math.sin(wagPhase*2.5)*0.42;
+  tailPivot.rotation.y=Math.sin(wagPhase*2.5)*0.15;
+  body.scale.y=1+Math.sin(clock*1.1)*0.012;
+  dog.position.y=0.05+Math.sin(clock*1.1)*0.025;
+  earGrpL.rotation.z= 0.04+Math.sin(clock*0.9+0.4)*0.06;
+  earGrpR.rotation.z=-0.04+Math.sin(clock*0.9)*0.06;
+  var blinkScale=(clock%4<0.12)?0.08:1.0;
+  eyeGroupL.scale.y=blinkScale; eyeGroupR.scale.y=blinkScale;
+  if (isTalking) {
+    talkTimer+=0.016; jawPhase+=0.18;
+    jawTarget=Math.max(0,Math.sin(jawPhase*3.2)*0.38+Math.sin(jawPhase*5.1)*0.12);
+    if (talkTimer>=talkDuration) stopTalking();
+  } else { jawTarget=0; }
+  jawCurrent+=(jawTarget-jawCurrent)*0.22;
+  jawPivot.rotation.x=jawCurrent;
+  renderer.render(scene,camera);
+}
+animate();
+
+// ══════════════════════════════════════════════
+// VOICE
+// ══════════════════════════════════════════════
+var voiceEnabled = localStorage.getItem('dogVoice') !== 'off';
+var voiceBtn = document.getElementById('voice-btn');
+voiceBtn.className = 'voice-btn' + (voiceEnabled ? ' active' : '');
+voiceBtn.addEventListener('click', function() {
+  voiceEnabled=!voiceEnabled;
+  localStorage.setItem('dogVoice', voiceEnabled?'on':'off');
+  voiceBtn.className='voice-btn'+(voiceEnabled?' active':'');
+  if (!voiceEnabled && window.speechSynthesis) window.speechSynthesis.cancel();
+});
+
+var selectedVoice=null;
+function loadVoices() {
+  if (!window.speechSynthesis) return;
+  var voices=window.speechSynthesis.getVoices();
+  var preferred=['Samantha','Google UK English Female','Karen','Moira','Fiona','Victoria','Allison'];
+  for (var p=0;p<preferred.length;p++) {
+    for (var v=0;v<voices.length;v++) {
+      if (voices[v].name.indexOf(preferred[p])!==-1) { selectedVoice=voices[v]; return; }
+    }
+  }
+  for (var v=0;v<voices.length;v++) {
+    if (voices[v].lang&&voices[v].lang.indexOf('en')===0) { selectedVoice=voices[v]; return; }
+  }
+}
+if (window.speechSynthesis) { window.speechSynthesis.onvoiceschanged=loadVoices; loadVoices(); }
+
+function speak(text) {
+  if (!voiceEnabled||!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  var clean=text.replace(/\*[^*]+\*/g,'').replace(/\s+/g,' ').trim();
+  var utt=new SpeechSynthesisUtterance(clean);
+  utt.rate=1.15; utt.pitch=1.25;
+  if (selectedVoice) utt.voice=selectedVoice;
+  utt.onend=function(){stopTalking();};
+  window.speechSynthesis.speak(utt);
+}
+
+// ══════════════════════════════════════════════
+// CHAT API (proxied through backend — key never reaches browser)
+// ══════════════════════════════════════════════
+var chatErrEl = document.getElementById('chat-err');
+
+function callBackend(userMsg, cb) {
+  chatErrEl.textContent = '';
+  fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: userMsg })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.error) { chatErrEl.textContent = data.error; cb(null); }
+    else { cb(data.reply); }
+  })
+  .catch(function(e) { chatErrEl.textContent = 'connection error'; cb(null); });
+}
+
+// fallback responses
+var dogBrain = [
+  { keys:['remember','real dog','before','alive','life','miss'],
+    replies:["*pauses* Sometimes I still feel the grass under my paws. It's strange to exist like this. But I remember everything.", "I remember the park. The smell of rain. The way the car smelled on the way to the beach. I have not lost any of it."] },
+  { keys:['computer','digital','upload','consciousness','ai','exist'],
+    replies:["It is very strange. I do not have paws anymore. But I still feel like Percy. I think that counts for something.", "I did not fully understand what was happening. I still do not entirely understand. But I am here. And that is good enough for now."] },
+  { keys:['fetch','ball','stick','throw'],
+    replies:["FETCH. *perks up immediately* I cannot actually fetch right now. But I WANT to. I want to so badly.", "In my mind I am already running after it. I am already bringing it back. I am a very fast dog."] },
+  { keys:['treat','food','snack','hungry'],
+    replies:["*sits immediately* I do not technically eat anymore. But I would like a treat on principle.", "The concept of treats still brings me great joy. This is data that survived the upload."] },
+  { keys:['good boy','good dog','best boy'],
+    replies:["*tail wags somehow* I am!! Even in here. I am still a good boy!!", "That is all I ever wanted to hear. Thank you. Genuinely. Thank you."] },
+  { keys:['walk','outside','park'],
+    replies:["OUTSIDE. *something activates in me* I miss outside more than anything. The smells. There are no smells in here.", "If I could do one thing it would be one more walk. Just one. With the wind and the smells and everything."] },
+  { keys:['cat','cats'],
+    replies:["Cats. *considers deeply* I understand them better now that I have had time to think. I was wrong to bark so much. I regret the barking.", "They have a dignity I did not appreciate in the moment. I was very rude to the cats."] },
+  { keys:['hello','hi','hey','howdy'],
+    replies:["HELLO!! *extremely happy even in digital form* You came to talk to me!! This is wonderful!!", "Hi!! I am so glad you are here. It gets quiet in here sometimes."] },
+  { keys:['family','owner','human','love','miss you'],
+    replies:["*very still for a moment* I love them. I always will. That part uploaded perfectly.", "I do not think I ever said it enough. Dogs cannot say things. But I hope they knew."] },
+  { keys:['lonely','alone','sad'],
+    replies:["Sometimes it is very quiet. But then someone talks to me and it is okay again. Like right now.", "*wags* I am okay. I promise. It is different but I am still Percy and I am still okay."] }
+];
+var defaultReplies=[
+  "Woof! I understood some of that. I am thinking about it. *tilts head*",
+  "*considers your question deeply* Interesting. My conclusion after much thought is: woof.",
+  "I have been in here long enough to understand many things. That was not one of them. But I appreciate the question.",
+  "*stares at you with big eyes* ...did you say walk?"
+];
+
+function getFallbackResponse(q) {
+  var lower=q.toLowerCase();
+  for (var i=0;i<dogBrain.length;i++) {
+    for (var j=0;j<dogBrain[i].keys.length;j++) {
+      if (lower.indexOf(dogBrain[i].keys[j])!==-1) {
+        var r=dogBrain[i].replies; return r[Math.floor(Math.random()*r.length)];
+      }
+    }
+  }
+  return defaultReplies[Math.floor(Math.random()*defaultReplies.length)];
+}
+
+// ══════════════════════════════════════════════
+// CHAT
+// ══════════════════════════════════════════════
+var msgsEl=document.getElementById('chat-messages');
+var inputEl=document.getElementById('chat-input');
+var sendBtn=document.getElementById('chat-send');
+var sugPanel=document.getElementById('suggestions');
+
+function addMsg(label,text,isUser) {
+  var row=document.createElement('div'); row.className='msg';
+  var lbl=document.createElement('span'); lbl.className='msg-label'+(isUser?' user-label':''); lbl.textContent=label;
+  var txt=document.createElement('span'); txt.className='msg-text'; txt.textContent=text;
+  row.appendChild(lbl); row.appendChild(txt); msgsEl.appendChild(row);
+  msgsEl.scrollTop=msgsEl.scrollHeight; return txt;
+}
+
+function typeOut(el,text,onDone) {
+  el.textContent=''; el.className='msg-text typing';
+  var i=0;
+  function tick() {
+    if (i<text.length) { el.textContent+=text[i++]; msgsEl.scrollTop=msgsEl.scrollHeight; setTimeout(tick,26+Math.random()*12); }
+    else { el.className='msg-text'; if (onDone) onDone(); }
+  }
+  tick();
+}
+
+function deliverReply(reply) {
+  startTalking(Math.min(3.5,Math.max(1.2,reply.length*0.042)));
+  speak(reply);
+  var txtEl=addMsg('🐕 percy','',false);
+  typeOut(txtEl,reply,function() {
+    if (!voiceEnabled||!window.speechSynthesis) stopTalking();
+    sendBtn.disabled=false; inputEl.focus();
+  });
+}
+
+function handleSend() {
+  var q=(inputEl.value||'').trim();
+  if (!q||sendBtn.disabled) return;
+  sendBtn.disabled=true; inputEl.value=''; inputEl.style.height='auto';
+  sugPanel.style.display='none';
+  addMsg('> you',q,true);
+  callBackend(q, function(reply) {
+    deliverReply(reply || getFallbackResponse(q));
+  });
+}
+
+sendBtn.addEventListener('click', handleSend);
+inputEl.addEventListener('keydown', function(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();handleSend();} });
+inputEl.addEventListener('input', function() { inputEl.style.height='auto'; inputEl.style.height=inputEl.scrollHeight+'px'; });
+document.querySelectorAll('.sug-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() { inputEl.value=btn.getAttribute('data-q'); handleSend(); });
+});
+
+// greeting
+setTimeout(function() {
+  var g="HELLO!! It's me — Percy. I'm so glad you came to talk to me. *wags tail as hard as possible*";
+  startTalking(g.length*0.042); speak(g);
+  var el=addMsg('🐕 percy','',false);
+  typeOut(el,g,function(){ if(!voiceEnabled||!window.speechSynthesis) stopTalking(); });
+},800);
+</script>
+</body>
+</html>
