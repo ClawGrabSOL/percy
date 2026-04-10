@@ -532,12 +532,12 @@ var Sph=function(r,c,sx,sy,sz){
 var SKIN=0xc8856a,SKIN_D=0xb06848,HAIR=0x1a0800,SHIRT=0x2c4a7a,PANTS=0x1a1a2a,SHOES=0x111111,EYE_W=0xf5f5f5,EYE_I=0x3a5a28,EYE_D=0x060606,LIP=0xa04838,TOOTH=0xf0ede8;
 
 var human=new THREE.Group();
-human.position.set(0,-0.05,0);
+human.position.set(0,-0.18,0);
 
 // ── LEGS ──
 var legs=[];
 [-.16,.16].forEach(function(xo,i){
-  var lg=new THREE.Group();lg.position.set(xo,-0.28,0);human.add(lg);
+  var lg=new THREE.Group();lg.position.set(xo,0.62,0);human.add(lg);
   // upper leg
   var ul=new THREE.Group();
   var ulm=Cap(.095,.38,PANTS,0,-.19,0);ul.add(ulm);lg.add(ul);
@@ -848,6 +848,7 @@ setTimeout(function() {
 </script>
 </body>
 </html>
+
 
 
 
