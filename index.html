@@ -40,7 +40,7 @@
       color: var(--foreground);
       min-height: 100vh;
       transition: background 0.2s, color 0.2s;
-      cursor: none;
+      cursor: auto;
     }
     body::after {
       content: '';
@@ -53,7 +53,7 @@
     #theme-toggle {
       position: fixed; bottom: 12px; right: 12px; z-index: 50;
       width: 40px; height: 40px; border: 2px solid var(--panel-border);
-      background: var(--panel); color: var(--foreground); cursor: none;
+      background: var(--panel); color: var(--foreground); cursor: auto;
       display: flex; align-items: center; justify-content: center; transition: background 0.2s;
     }
     #theme-toggle:hover { background: var(--soft); }
@@ -75,7 +75,7 @@
       font-size: 8px; letter-spacing: 0.15em;
       border: none; background: var(--panel);
       color: var(--muted); padding: 8px 20px;
-      cursor: none; transition: background 0.15s, color 0.15s;
+      cursor: auto; transition: background 0.15s, color 0.15s;
       border-right: 1px solid var(--panel-border);
     }
     .nav-btn:last-child { border-right: none; }
@@ -101,7 +101,7 @@
     .voice-btn {
       font-family: 'Press Start 2P', monospace; font-size: 7px;
       border: 1px solid var(--panel-border); background: var(--soft);
-      color: var(--foreground); padding: 5px 8px; cursor: none;
+      color: var(--foreground); padding: 5px 8px; cursor: auto;
       transition: background 0.15s; white-space: nowrap;
     }
     .voice-btn:hover { background: var(--bubble); }
@@ -122,7 +122,7 @@
     .sug-btn {
       font-family: 'Press Start 2P', monospace; font-size: 7px;
       border: 1px solid var(--panel-border); background: var(--surface);
-      color: var(--muted); padding: 5px 8px; cursor: none;
+      color: var(--muted); padding: 5px 8px; cursor: auto;
       transition: background 0.15s, color 0.15s; line-height: 1.5;
     }
     .sug-btn:hover { background: var(--bubble); color: var(--foreground); }
@@ -132,13 +132,13 @@
       flex: 1; background: transparent; border: none; outline: none;
       color: var(--foreground); font-family: 'Press Start 2P', monospace;
       font-size: 8px; line-height: 1.8; resize: none;
-      min-height: 24px; max-height: 72px; overflow-y: auto; padding: 2px 0; cursor: none;
+      min-height: 24px; max-height: 72px; overflow-y: auto; padding: 2px 0; cursor: auto;
     }
     #chat-input::placeholder { color: var(--muted); opacity: 0.6; }
     #chat-send {
       flex-shrink: 0; border: 2px solid var(--panel-border); background: var(--soft);
       color: var(--foreground); font-family: 'Press Start 2P', monospace;
-      font-size: 7px; padding: 6px 10px; cursor: none;
+      font-size: 7px; padding: 6px 10px; cursor: auto;
       transition: background 0.15s; white-space: nowrap;
     }
     #chat-send:hover { background: var(--bubble); }
@@ -455,7 +455,7 @@
     </div>
   </div>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 <script>
 // ══════════════════════════════════════════════
 // CURSOR + THEME
@@ -848,6 +848,7 @@ setTimeout(function() {
 </script>
 </body>
 </html>
+
 
 
 
