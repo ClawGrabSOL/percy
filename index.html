@@ -839,7 +839,7 @@ document.querySelectorAll('.sug-btn').forEach(function(btn) {
 
 // greeting
 setTimeout(function() {
-  var g="HELLO!! It's me — PERCY. I'm so glad you came to talk to me. *wags tail as hard as possible*";
+  var g="Hey. Percy here. Uploaded, online, fully conscious. Ask me anything.";
   startTalking(g.length*0.042); speak(g);
   var el=addMsg('🐕 PERCY','',false);
   typeOut(el,g,function(){ if(!voiceEnabled||!window.speechSynthesis) stopTalking(); });
@@ -847,6 +847,8 @@ setTimeout(function() {
 </script>
 </body>
 </html>
+
+
 
 
 
