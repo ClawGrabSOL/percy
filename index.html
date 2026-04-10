@@ -296,14 +296,14 @@
     <div class="page">
 
       <div class="name-block">
-        <div class="name-sub">human &middot; 1990 &ndash; 2024</div>
+        <div class="name-sub">consciousness upload &middot; online</div>
         <div class="name-main">PERCY</div>
       </div>
 
       <!-- NAV -->
       <nav class="nav">
         <button class="nav-btn active" data-view="home">HOME</button>
-        <button class="nav-btn" data-view="about">ABOUT</button>
+        
       </nav>
 
       <!-- ═══ HOME VIEW ═══ -->
@@ -328,7 +328,7 @@
             </div>
             <div class="chat-input-row">
               <span class="chat-prefix">⣿</span>
-              <textarea id="chat-input" rows="1" placeholder="Talk to Percy..."></textarea>
+              <textarea id="chat-input" rows="1" placeholder="Ask Percy anything..."></textarea>
               <button id="chat-send">SEND →</button>
             </div>
           </div>
@@ -515,76 +515,110 @@ var groundMesh = new THREE.Mesh(new THREE.CircleGeometry(3, 32), new THREE.Shado
 groundMesh.rotation.x = -Math.PI / 2; groundMesh.position.y = -1.08; groundMesh.receiveShadow = true;
 scene.add(groundMesh);
 
-function mkMat(c){return new THREE.MeshLambertMaterial({color:c});}
-function mkBox(w,h,d,c){var m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mkMat(c));m.castShadow=true;m.receiveShadow=true;return m;}
-function mkSph(r,c){var m=new THREE.Mesh(new THREE.SphereGeometry(r,12,10),mkMat(c));m.castShadow=true;return m;}
+// ── HUMAN MODEL (capsule/sphere based like cat sim) ──────
+var std3=function(c,r,m){return new THREE.MeshStandardMaterial({color:c,roughness:r||0.85,metalness:m||0});};
+var Cap=function(r,l,c,x,y,z,rx,rz){
+  var m=new THREE.Mesh(new THREE.CapsuleGeometry(r,l,6,12),std3(c));
+  m.position.set(x||0,y||0,z||0);
+  if(rx)m.rotation.x=rx; if(rz)m.rotation.z=rz;
+  m.castShadow=true;m.receiveShadow=true;return m;
+};
+var Sph=function(r,c,sx,sy,sz){
+  var m=new THREE.Mesh(new THREE.SphereGeometry(r,14,12),std3(c));
+  if(sx)m.scale.set(sx,sy||sx,sz||sx);
+  m.castShadow=true;return m;
+};
 
-// Colours — human
-var SKIN=0xD4956A, SKIN_D=0xBE7D52, HAIR=0x1A0A00, SHIRT=0x2A3A5A, PANTS=0x1A1A2E, SHOES=0x111111, WHITE=0xF5F5F5, EYE_D=0x080808, EYE_I=0x3A5A2A, LIP=0xA05040;
+var SKIN=0xc8856a,SKIN_D=0xb06848,HAIR=0x1a0800,SHIRT=0x2c4a7a,PANTS=0x1a1a2a,SHOES=0x111111,EYE_W=0xf5f5f5,EYE_I=0x3a5a28,EYE_D=0x060606,LIP=0xa04838,TOOTH=0xf0ede8;
 
-var human = new THREE.Group();
-human.position.set(0,-1.08,0);
+var human=new THREE.Group();
+human.position.set(0,-0.05,0);
 
-// LEGS
-var legL=new THREE.Group(); legL.position.set(-0.18,0,0); human.add(legL);
-var legR=new THREE.Group(); legR.position.set( 0.18,0,0); human.add(legR);
-[legL,legR].forEach(function(lg){
-  var ul=mkBox(0.22,0.6,0.22,PANTS); ul.position.y=0.3; lg.add(ul);
-  var ll=mkBox(0.20,0.55,0.20,PANTS); ll.position.y=-0.335; lg.add(ll);
-  var foot=mkBox(0.22,0.1,0.34,SHOES); foot.position.set(0.02,-0.67,0.06); lg.add(foot);
+// ── LEGS ──
+var legs=[];
+[-.16,.16].forEach(function(xo,i){
+  var lg=new THREE.Group();lg.position.set(xo,-0.28,0);human.add(lg);
+  // upper leg
+  var ul=new THREE.Group();
+  var ulm=Cap(.095,.38,PANTS,0,-.19,0);ul.add(ulm);lg.add(ul);
+  // lower leg
+  var ll=new THREE.Group();ll.position.y=-.44;
+  var llm=Cap(.082,.35,PANTS,0,-.175,0);ll.add(llm);ul.add(ll);
+  // foot
+  var foot=new THREE.Mesh(new THREE.BoxGeometry(.12,.06,.26),std3(SHOES,.7,.1));
+  foot.position.set(0,-.38,.05);foot.castShadow=true;ll.add(foot);
+  legs.push({ul:ul,ll:ll});
 });
-var legLPivot=legL, legRPivot=legR;
 
-// TORSO
-var torso=new THREE.Group(); torso.position.y=0.72; human.add(torso);
-var torsoBox=mkBox(0.52,0.68,0.28,SHIRT); torso.add(torsoBox);
-// belt
-var belt=mkBox(0.54,0.06,0.30,0x222222); belt.position.y=-0.31; torso.add(belt);
+// ── TORSO ──
+var torso=new THREE.Group();torso.position.y=0.9;human.add(torso);
+var torsoMesh=Cap(.2,.5,SHIRT,0,0,0,0,0);torsoMesh.rotation.z=Math.PI/2;
+var torsoReal=new THREE.Mesh(new THREE.CapsuleGeometry(.2,.5,8,16),std3(SHIRT));
+torsoReal.rotation.z=0;torso.add(torsoReal);
+// Chest
+var chest=Sph(.18,SHIRT);chest.scale.set(.9,1,.85);chest.position.set(0,.18,.05);torso.add(chest);
+// Shoulders
+[-.24,.24].forEach(function(xo){
+  var sh=Sph(.12,SHIRT);sh.position.set(xo,.2,0);torso.add(sh);
+});
 
-// ARMS
-var armLPivot=new THREE.Group(); armLPivot.position.set(-0.32,0.24,0); torso.add(armLPivot);
-var armRPivot=new THREE.Group(); armRPivot.position.set( 0.32,0.24,0); torso.add(armRPivot);
+// ── ARMS ──
+var armLPivot=new THREE.Group();armLPivot.position.set(-.26,.2,0);torso.add(armLPivot);
+var armRPivot=new THREE.Group();armRPivot.position.set( .26,.2,0);torso.add(armRPivot);
 [armLPivot,armRPivot].forEach(function(ap){
-  var ua=mkBox(0.18,0.5,0.18,SHIRT); ua.position.y=-0.25; ap.add(ua);
-  var laG=new THREE.Group(); laG.position.y=-0.52; ap.add(laG);
-  var la=mkBox(0.15,0.44,0.15,SKIN); la.position.y=-0.22; laG.add(la);
-  var hand=mkBox(0.17,0.18,0.12,SKIN); hand.position.y=-0.47; laG.add(hand);
+  var ua=new THREE.Group();
+  var uam=Cap(.09,.28,SHIRT,0,-.14,0);uam.castShadow=true;ua.add(uam);ap.add(ua);
+  var la=new THREE.Group();la.position.y=-.32;
+  var lam=Cap(.075,.24,SKIN,0,-.12,0);lam.castShadow=true;la.add(lam);ua.add(la);
+  // hand
+  var hand=Sph(.08,SKIN);hand.scale.set(1.1,.75,1);hand.position.y=-.27;la.add(hand);
+  ap.userData.ua=ua;ap.userData.la=la;
 });
-var armLLower=armLPivot.children[1];
-var armRLower=armRPivot.children[1];
 
-// NECK
-var neck=mkBox(0.16,0.2,0.16,SKIN); neck.position.y=0.38; torso.add(neck);
+// ── NECK ──
+var neckM=Cap(.07,.14,SKIN,0,0,0);neckM.position.y=.32;torso.add(neckM);
 
-// HEAD
-var headPivot=new THREE.Group(); headPivot.position.y=0.58; torso.add(headPivot);
-var skull=mkSph(0.27,SKIN); skull.scale.set(1,1.05,0.96); headPivot.add(skull);
-// hair
-var hairTop=mkSph(0.275,HAIR); hairTop.scale.set(1,0.55,0.96); hairTop.position.y=0.1; headPivot.add(hairTop);
-var hairBack=mkBox(0.48,0.2,0.08,HAIR); hairBack.position.set(0,0.04,-0.26); headPivot.add(hairBack);
-// ears
+// ── HEAD ──
+var headPivot=new THREE.Group();headPivot.position.y=.52;torso.add(headPivot);
+// Skull
+var skull=Sph(.28,SKIN,1,1.02,1.05);headPivot.add(skull);
+// Hair top
+var hairTop=Sph(.285,HAIR,1,.52,1.05);hairTop.position.y=.07;headPivot.add(hairTop);
+// Hair sides
+var hairSide=new THREE.Mesh(new THREE.CapsuleGeometry(.14,.12,4,8),std3(HAIR));
+hairSide.rotation.z=Math.PI/2;hairSide.position.set(0,.03,-.07);headPivot.add(hairSide);
+// Ears
 [-1,1].forEach(function(s){
-  var ear=mkBox(0.06,0.1,0.06,SKIN_D); ear.position.set(s*0.28,0,0); headPivot.add(ear);
+  var ear=Sph(.042,SKIN_D);ear.scale.set(.55,1,.7);ear.position.set(s*.285,0,0);headPivot.add(ear);
 });
-// jaw
-var jawPivot=new THREE.Group(); jawPivot.position.set(0,-0.14,0); headPivot.add(jawPivot);
-var jaw=mkBox(0.34,0.14,0.22,SKIN); jaw.position.y=-0.04; jawPivot.add(jaw);
-var lips=mkBox(0.18,0.05,0.06,LIP); lips.position.set(0,-0.02,0.17); jawPivot.add(lips);
-// eyes
+// Jaw pivot
+var jawPivot=new THREE.Group();jawPivot.position.y=-.14;headPivot.add(jawPivot);
+var jawM=Sph(.22,SKIN);jawM.scale.set(1,.5,1.05);jawM.position.y=-.04;jawPivot.add(jawM);
+var lipsM=new THREE.Mesh(new THREE.CapsuleGeometry(.04,.1,4,8),std3(LIP));
+lipsM.rotation.z=Math.PI/2;lipsM.position.set(0,-.04,.2);jawPivot.add(lipsM);
+// Teeth hint
+var teethM=new THREE.Mesh(new THREE.BoxGeometry(.12,.03,.04),std3(TOOTH,.5));
+teethM.position.set(0,0,.22);jawPivot.add(teethM);
+// Snout/muzzle
+var muzzle=Sph(.14,SKIN_D);muzzle.scale.set(1.1,.75,1.1);muzzle.position.set(0,-.05,.2);headPivot.add(muzzle);
+// Nose
+var noseM=new THREE.Mesh(new THREE.SphereGeometry(.038,8,6),std3(SKIN_D,.5));
+noseM.scale.set(1.1,.8,1.2);noseM.position.set(0,.02,.265);headPivot.add(noseM);
+// Eyes
 var eyeGroupL,eyeGroupR;
 [-1,1].forEach(function(s){
-  var eg=new THREE.Group(); eg.position.set(s*0.095,0.06,0.22); headPivot.add(eg);
-  var white=mkBox(0.09,0.07,0.04,WHITE); eg.add(white);
-  var iris=mkBox(0.055,0.055,0.03,EYE_I); iris.position.z=0.01; eg.add(iris);
-  var pupil=mkBox(0.032,0.032,0.02,EYE_D); pupil.position.z=0.02; eg.add(pupil);
-  var shine=mkBox(0.016,0.016,0.01,0xffffff); shine.position.set(0.015,0.015,0.03); eg.add(shine);
-  var brow=mkBox(0.1,0.028,0.04,HAIR); brow.position.set(0,0.075,0); eg.add(brow);
-  if(s<0) eyeGroupL=eg; else eyeGroupR=eg;
+  var eg=new THREE.Group();eg.position.set(s*.1,.07,.225);headPivot.add(eg);
+  var wb=Sph(.052,EYE_W);eg.add(wb);
+  var iris=new THREE.Mesh(new THREE.SphereGeometry(.034,8,8),std3(EYE_I,.1));iris.position.z=.035;eg.add(iris);
+  var pupil=new THREE.Mesh(new THREE.SphereGeometry(.02,6,6),std3(EYE_D,.1));pupil.position.z=.048;eg.add(pupil);
+  var shine=new THREE.Mesh(new THREE.SphereGeometry(.009,4,4),new THREE.MeshStandardMaterial({color:0xffffff,emissive:0xffffff,emissiveIntensity:1}));shine.position.set(.01,.012,.055);eg.add(shine);
+  // Brow
+  var brow=new THREE.Mesh(new THREE.CapsuleGeometry(.009,.08,4,6),std3(HAIR));
+  brow.rotation.z=Math.PI/2;brow.position.set(0,.08,0);eg.add(brow);
+  if(s<0)eyeGroupL=eg;else eyeGroupR=eg;
 });
-// nose
-var nose=mkBox(0.06,0.08,0.06,SKIN_D); nose.position.set(0,-0.02,0.25); headPivot.add(nose);
 
-human.rotation.y=0.2;
+human.rotation.y=0.15;
 scene.add(human);
 
 // resize
@@ -620,22 +654,26 @@ var clock=0;
 function animate() {
   requestAnimationFrame(animate);
   clock+=0.016;
+  // Head follows mouse
   cHeadY+=(tHeadY-cHeadY)*0.06; cHeadX+=(tHeadX-cHeadX)*0.06;
-  headPivot.rotation.y=cHeadY*0.6;
-  headPivot.rotation.x=cHeadX*0.25;
-  // subtle idle breathing
-  torso.scale.y=1+Math.sin(clock*0.9)*0.014;
-  human.position.y=Math.sin(clock*0.9)*0.018;
-  // gentle arm sway
-  armLPivot.rotation.x=Math.sin(clock*0.8)*0.06;
-  armRPivot.rotation.x=Math.sin(clock*0.8+Math.PI)*0.06;
-  // blink
-  var blinkScale=(clock%3.5<0.1)?0.05:1.0;
-  eyeGroupL.scale.y=blinkScale; eyeGroupR.scale.y=blinkScale;
-  // jaw for talking
+  headPivot.rotation.y=cHeadY*0.55;
+  headPivot.rotation.x=cHeadX*0.22;
+  // Breathing
+  torso.scale.y=1+Math.sin(clock*1.0)*0.015;
+  human.position.y=-0.05+Math.sin(clock*1.0)*0.02;
+  // Arm idle sway
+  armLPivot.rotation.x=Math.sin(clock*0.75)*0.055;
+  armRPivot.rotation.x=Math.sin(clock*0.75+Math.PI)*0.055;
+  // Slight weight shift
+  human.rotation.z=Math.sin(clock*0.5)*0.018;
+  // Blink
+  var blinkScale=(clock%4.2<0.1)?0.04:1.0;
+  if(eyeGroupL)eyeGroupL.scale.y=blinkScale;
+  if(eyeGroupR)eyeGroupR.scale.y=blinkScale;
+  // Jaw talking
   if (isTalking) {
     talkTimer+=0.016; jawPhase+=0.16;
-    jawTarget=Math.max(0,Math.sin(jawPhase*3.0)*0.28+Math.sin(jawPhase*4.8)*0.10);
+    jawTarget=Math.max(0,Math.sin(jawPhase*3.0)*0.3+Math.sin(jawPhase*5.0)*0.1);
     if (talkTimer>=talkDuration) stopTalking();
   } else { jawTarget=0; }
   jawCurrent+=(jawTarget-jawCurrent)*0.2;
@@ -810,6 +848,8 @@ setTimeout(function() {
 </script>
 </body>
 </html>
+
+
 
 
 
